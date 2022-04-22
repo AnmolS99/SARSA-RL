@@ -1,8 +1,8 @@
 """haakon8855, anmols99, mnottveit"""
 
-from matplotlib.animation import FuncAnimation
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 
 class AcrobatSimWorld:
