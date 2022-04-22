@@ -1,5 +1,6 @@
 """haakon8855, anmols99, mnottveit"""
 
+from matplotlib.animation import FuncAnimation
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -31,8 +32,8 @@ class AcrobatSimWorld:
 
         self.episode_len = 400
         self.steps_taken = 0
+        self.center_plot = (3, 3)
         self.history = []
-        self.best_episode_history = []
 
     def begin_episode(self):
         """
@@ -51,9 +52,11 @@ class AcrobatSimWorld:
         self.steps_taken = 0
 
         # Resetting the history, and adding the initial state to the history
-        # self.history = [(0, self.theta)]
-        self.history = [(0, (self.theta_1, self.theta_1_der, self.theta_2,
-                             self.theta_2_der))]
+        xp_1, yp_1 = self.center_plot
+        xp_2, yp_2, xtip, ytip = self.calculate_segment_positions(xp_1, yp_1)
+        x_coords = [self.center_plot[0], xp_2, xtip]
+        y_coords = [self.center_plot[1], yp_2, ytip]
+        self.history = [(x_coords, y_coords)]
 
         return self.get_current_state()
 
@@ -89,9 +92,11 @@ class AcrobatSimWorld:
         self.steps_taken += 1
 
         # Adding the current step to the history
-        self.history.append(
-            (self.steps_taken, (self.theta_1, self.theta_1_der, self.theta_2,
-                                self.theta_2_der)))
+        xp_1, yp_1 = self.center_plot
+        xp_2, yp_2, xtip, ytip = self.calculate_segment_positions(xp_1, yp_1)
+        x_coords = [self.center_plot[0], xp_2, xtip]
+        y_coords = [self.center_plot[1], yp_2, ytip]
+        self.history.append((x_coords, y_coords))
 
         return self.get_current_state(), reward
 
@@ -136,10 +141,9 @@ class AcrobatSimWorld:
 
     def end_episode(self):
         """
-        Ending the episode by saving the history if it is the best one yet
+        Ending the episode.
         """
-        if len(self.history) < len(self.best_episode_history):
-            self.best_episode_history = self.history
+        self.show_episode()
 
     def get_current_state(self):
         """
@@ -168,13 +172,12 @@ class AcrobatSimWorld:
 
     def one_hot_encode(self, state):
         """
-        One hot encoding
+        One hot encoding.
         """
-        # TODO: Must find out reasonable one hot encoding of state
         one_hot_theta_1 = self.one_hot_encode_sign(state[0])
-        one_hot_theta_1_der = self.one_hot_encode_sign(state[1])
+        one_hot_theta_1_der = self.one_hot_encode_number(state[1])
         one_hot_theta_2 = self.one_hot_encode_sign(state[2])
-        one_hot_theta_2_der = self.one_hot_encode_sign(state[3])
+        one_hot_theta_2_der = self.one_hot_encode_number(state[3])
         return np.concatenate((one_hot_theta_1, one_hot_theta_1_der,
                                one_hot_theta_2, one_hot_theta_2_der))
 
@@ -191,37 +194,38 @@ class AcrobatSimWorld:
         """
         One hot encoding numbers
         """
-        # TODO: If we decide to use this, must probably change idk
-        # n = 3
-        # one_hot = np.zeros((2 * n) + 1)
-        # if number >= -(n - 1) and number <= (n - 1):
-        #     one_hot[int(number) + n] = 1
-        # elif number < -(n - 1):
-        #     one_hot[0] = 1
-        # else:
-        #     one_hot[-1] = 1
-        # return one_hot
+        n = 3
+        one_hot = np.zeros((2 * n) + 1)
+        if number >= -(n - 1) and number <= (n - 1):
+            one_hot[int(number) + n] = 1
+        elif number < -(n - 1):
+            one_hot[0] = 1
+        else:
+            one_hot[-1] = 1
+        return one_hot
 
-    def show_best_history(self):
-        """
-        Showing the history of the best episode
-        """
-        # TODO: Do we really need history? We are probably just showing games live.
-        # # Plotting the history (angle of the pole) of the best episode
-        # timesteps = [i[0] for i in self.best_episode_history]
-        # thetas = [i[1] for i in self.best_episode_history]
-        # plt.plot(timesteps, thetas)
-        # plt.xlabel("Timestep")
-        # plt.ylabel("Angle (Radians)")
-        # plt.show()
-
-    def show_state(self):
+    def show_episode(self, interval: int = 10):
         """
         Shows the given state in pyplot.
         """
-        xp_1, yp_1, xtip, ytip = self.calculate_segment_positions(2, 2)
-        plt.plot([2, xp_1, xtip], [2, yp_1, ytip])
+        fig, ax = plt.subplots(figsize=(5, 5))
+        ax.set(xlim=(0, 6), ylim=(0, 4.5))
+        segments = ax.plot(self.history[0][0],
+                           self.history[0][1],
+                           color='red',
+                           lw=2)[0]
+
+        def animate(i):
+            x_coords = self.history[i][0]
+            y_coords = self.history[i][1]
+            segments.set_xdata(x_coords)
+            segments.set_ydata(y_coords)
+            ax.set_title(str(i))
+
+        _ = FuncAnimation(fig, animate, interval=interval)
+        plt.draw()
         plt.show()
+        return segments
 
 
 def main():
@@ -230,19 +234,13 @@ def main():
     """
     simworld = AcrobatSimWorld()
     simworld.begin_episode()
-    simworld.show_state()
-    simworld.next_state(1)
-    simworld.show_state()
-    simworld.next_state(1)
-    simworld.show_state()
-    simworld.next_state(1)
-    simworld.show_state()
-    simworld.next_state(1)
-    simworld.show_state()
-    simworld.next_state(1)
-    simworld.show_state()
-    simworld.next_state(1)
-    simworld.show_state()
+    for _ in range(200):
+        simworld.next_state(1)
+    # for _ in range(50):
+    #     simworld.next_state(-1)
+    for _ in range(1000):
+        simworld.next_state(0)
+    simworld.show_episode(interval=20)
 
 
 if __name__ == '__main__':
