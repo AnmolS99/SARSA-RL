@@ -1,31 +1,21 @@
 import random
+import numpy as np
 import tensorflow as tf
 
+class Critic:
 
-class Critic():
     """
     The Critic class
     """
 
-    def __init__(self, use_nn, nn_specs, lr, elig_decay, disc_factor) -> None:
+    def __init__(self, lr, nn_specs, disc_factor, epsilon,
+                 epsilon_decay_rate) -> None:
+        self.lr = lr
+        self.nn = self.create_nn(nn_specs)
+        self.disc_factor = disc_factor
+        self.epsilon = epsilon
+        self.epsilon_decay_rate = epsilon_decay_rate
 
-        self.lr = lr  # Learning rate (needs to be declared first as it is used in creation of NN)
-
-        self.use_nn = use_nn
-
-        if self.use_nn:
-            self.nn = self.create_nn(nn_specs)
-        else:
-            self.nn = None
-
-        self.elig_decay = elig_decay  # Eligibility decay
-        self.disc_factor = disc_factor  # Discount factor
-
-        # Initializing V(s) as empty dictionary
-        self.state_values = {}
-
-        # Initializing e(s) as empty dictionary
-        self.elig = {}
 
     def create_nn(self, nn_specs):
         """
@@ -60,47 +50,40 @@ class Critic():
         model.compile(optimizer, "mean_squared_error")
         return model
 
-    def get_state_value(self, s):
+    def Q(self, s, a):
         """
-        Returns the value of a state
+        Returns the policy
         """
-        # If no value is found for the state, return a small random number
+        # If there is no policy for the pair (s, a), return 0
         # IMPORTANT: s is assumed to be a list and is therefore converted to tuple
-        return self.state_values.get(tuple(s), random.random() * 0.5)
+        s_a = np.concatenate(s, a)
+        return self.nn(s_a[None])
 
-    def get_elig_value(self, s):
+    def get_optimal_action(self, s, valid_actions):
         """
-        Returns the eligibility trace value for a state
+        Returns the action with the highest value given the state (and the current policy)
         """
-        # If no value is found for the elibility trace of the state, return 0
-        # IMPORTANT: s is assumed to be a list and is therefore converted to tuple
-        return self.elig.get(tuple(s), 0)
+        optimal_action = None
+        optimal_score = None
 
-    def reset_elig(self):
-        """
-        Resetting eligibilities by setting it to an empty dictionary, only if critic is table-based
-        """
-        if not self.use_nn:
-            self.elig = {}
+        for action in valid_actions:
 
-    def calculate_td_error(self, r, s, s_next):
+            policy_score = self.Q(s, action)
+
+            # If this action has a higher score than the current optimal one
+            if optimal_score == None or policy_score > optimal_score:
+                optimal_action = action
+                optimal_score = policy_score
+
+        return optimal_action
+
+    def policy(self, s, valid_actions):
         """
-        Calculating the TD-error
+        Returns an action, with a probability of choosing a random action instead of the optimal one
         """
-        if self.use_nn:
-            return self.calculate_v_star(r, s_next) - self.calculate_v_theta(s)
+        # Having a probability of epsilon of choosing random action
+        if random.random() <= self.epsilon:
+            return random.choice(valid_actions)
         else:
-            return r + self.disc_factor * self.get_state_value(
-                s_next) - self.get_state_value(s)
-
-    def calculate_v_star(self, r, s_next):
-        """
-        Calculating V_star of state s (which is not included in calculations), using s_next
-        """
-        return r + self.disc_factor * self.calculate_v_theta(s_next)
-
-    def calculate_v_theta(self, s):
-        """
-        Using NN model to predict value of state s
-        """
-        return self.nn(s[None])
+            return self.get_optimal_action(s, valid_actions)
+        

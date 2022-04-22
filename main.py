@@ -1,8 +1,6 @@
 from matplotlib import pyplot as plt
-from gambler import GamblerSimWorld
 from pole_balancing import PoleBalancingSimWorld
 from rl_system import RLSystem
-from towers_of_hanoi import TowersOfHanoiSimWorld
 import random
 import numpy as np
 import tensorflow as tf
