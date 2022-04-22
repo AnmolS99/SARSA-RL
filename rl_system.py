@@ -8,13 +8,10 @@ class RLSystem():
     The reinforcement learning system, consisting of an actor and a critic
     """
 
-    def __init__(self, sim_world, num_episodes, max_steps, critic_lr, critic_disc_factor,
-                 display, delay, nn_specs) -> None:
+    def __init__(self, sim_world, num_episodes, max_steps, critic_lr, critic_disc_factor, nn_specs) -> None:
         self.sim_world = sim_world
         self.num_episodes = num_episodes
         self.max_steps = max_steps
-        self.display = display
-        self.delay = delay
 
         self.critic = Critic(critic_lr, nn_specs, critic_disc_factor, 0, 0)
 
@@ -84,7 +81,3 @@ class RLSystem():
         plt.xlabel("Episode")
         plt.ylabel("Timestep")
         plt.show()
-
-        if self.display:
-            # Showing the history of the best episode
-            self.sim_world.show_best_history(self.delay)
