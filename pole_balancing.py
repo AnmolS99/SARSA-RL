@@ -1,191 +1,249 @@
+"""haakon8855, anmols99, mnottveit"""
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 
-class PoleBalancingSimWorld:
+class AcrobatSimWorld:
     """
-    Pole Balancing simulation world
+    Pole Balancing simulation world.
+    State representation: [theta1 (float), theta1' (float), theta2 (float), theta2 (float)']
+    Action representation: action ∈ {-1, 0, 1}
     """
 
-    def __init__(self, l=0.5, m_p=0.1, g=-9.8, timestep=0.02) -> None:
-
-        self.l = l  # Length of the pole
-        self.m_p = m_p  # Mass of the pole
-        self.g = g  # Gravity
-
-        self.m_c = 1  # Mass of the cart
-        self.theta = None
-        self.theta_first_der = None
-        self.theta_second_der = None
-        self.x = None
-        self.x_vel = 0
-        self.x_acc = 0
-        self.f = 10
-        self.b = self.f
-        self.theta_m = 0.21
-        self.x_minus = -2.4
-        self.x_plus = 2.4
+    def __init__(self, gravity=9.8, timestep=0.05) -> None:
+        self.gravity = gravity
         self.timestep = timestep
-        self.episode_len = 300
+
+        self.l_1 = 1  # Length of upper segment
+        self.l_2 = 1  # Length of lower segment
+        self.lc_1 = 0.5  # Length from endpoint to center of mass for upper segment
+        self.lc_2 = 0.5  # Length from endpoint to center of mass for lower segment
+        self.m_1 = 1  # Mass of upper segment
+        self.m_2 = 1  # Mass of lower segment
+
+        self.theta_1 = None
+        self.theta_1_der = None
+        self.theta_2 = None
+        self.theta_2_der = None
+
+        self.force = 1  # Magnitude of the force applied
+
+        self.episode_len = 400
         self.steps_taken = 0
         self.history = []
         self.best_episode_history = []
 
     def begin_episode(self):
         """
-        Starting an episode
+        Starting an episode by resetting state variables
+        and returning the initial state.
         """
-        # Centering the cart at the horizontal position
-        self.x = (self.x_minus + self.x_plus) / 2
+        # Setting both angles to zero (both segments hanging straight down)
+        self.theta_1 = 0
+        self.theta_2 = 0
 
-        # Setting horizontal cart velocity to 0
-        self.x_vel = 0
-
-        # Randomly choosing theta (the pole angle)
-        self.theta = np.random.uniform(-self.theta_m, self.theta_m)
-
-        # Setting theta first temporal derivative to 0
-        self.theta_first_der = 0
+        # Setting derivatives of both angles to 0 (no rotational velocity)
+        self.theta_1_der = 0
+        self.theta_2_der = 0
 
         # Resetting the number of steps taken in the current episode
         self.steps_taken = 0
 
         # Resetting the history, and adding the initial state to the history
-        self.history = [(0, self.theta)]
+        # self.history = [(0, self.theta)]
+        self.history = [(0, (self.theta_1, self.theta_1_der, self.theta_2,
+                             self.theta_2_der))]
 
         return self.get_current_state()
 
-    def next_state(self, action):
+    def next_state(self, action: int):
         """
-        Performing an action and going to the next state
+        Performing an action and going to the next state.
         """
 
-        if action == "left":
-            self.b = -self.f
-        elif action == "right":
-            self.b = self.f
-        else:
-            print("Invalid action")
+        if action < 0:  # Force to left
+            applied_force = -self.force
+        elif action > 0:  # Force to right
+            applied_force = self.force
+        else:  # No force
+            applied_force = 0
 
-        # Calculating all the relationships
-        theta_second_numerator = self.g * np.sin(self.theta) + np.cos(
-            self.theta) * ((-self.b - self.m_p * self.l *
-                            (self.theta_first_der**2) * np.sin(self.theta)) /
-                           (self.m_c + self.m_p))
+        # Calculate the second derivatives of the angles
+        theta_1_second_der, theta_2_second_der = self.calculate_angular_acceleration(
+            applied_force)
 
-        theta_second_denominator = self.l * ((4 / 3) -
-                                             ((self.m_p *
-                                               (np.cos(self.theta)**2)) /
-                                              (self.m_c + self.m_p)))
-        self.theta_second_der = theta_second_numerator / theta_second_denominator
-
-        self.x_acc = (self.b + self.m_p * self.l *
-                      ((self.theta_first_der**2) * np.sin(self.theta) -
-                       self.theta_second_der * np.cos(self.theta))) / (
-                           self.m_p + self.m_c)
-
-        self.x = self.x + self.timestep * self.x_vel
-        self.x_vel = self.x_vel + self.timestep * self.x_acc
-
-        self.theta = self.theta + self.timestep * self.theta_first_der
-        self.theta_first_der = self.theta_first_der + self.timestep * self.theta_second_der
+        # Update the state variables with the calculated second derivatives
+        self.theta_2_der = self.theta_2_der + self.timestep * theta_2_second_der
+        self.theta_1_der = self.theta_1_der + self.timestep * theta_1_second_der
+        self.theta_2 = self.theta_2 + self.timestep * self.theta_2_der
+        self.theta_1 = self.theta_1 + self.timestep * self.theta_1_der
 
         # Calculate the reward
-        if self.theta_in_range() and self.x_in_range():
-            reward = 1 + (self.theta_m - abs(self.theta)) * 10 + (self.x_plus -
-                                                                  abs(self.x))
+        if self.is_end_state():
+            reward = 1
         else:
-            reward = -1000000
+            reward = 0
 
         # Increment number of steps taken
         self.steps_taken += 1
 
         # Adding the current step to the history
-        self.history.append((self.steps_taken, self.theta))
+        self.history.append(
+            (self.steps_taken, (self.theta_1, self.theta_1_der, self.theta_2,
+                                self.theta_2_der)))
 
         return self.get_current_state(), reward
+
+    def calculate_angular_acceleration(self, applied_force):
+        """
+        Calculates the second derivatives of both thetas (angular acceleration)
+        using the applied force given (left, right or no force).
+        """
+        phi_2 = self.m_2 * self.lc_2 * self.gravity * np.cos(self.theta_1 +
+                                                             self.theta_2 -
+                                                             np.pi / 2)
+        phi_1 = (-self.m_2 * self.l_1 * self.lc_2 *
+                 (self.theta_2_der**2) * np.sin(self.theta_2)) - (
+                     2 * self.m_2 * self.l_1 * self.lc_2 * self.theta_2_der *
+                     self.theta_1_der * np.sin(self.theta_2)) + (
+                         (self.m_1 * self.lc_1 + self.m_2 * self.l_1) *
+                         self.gravity * np.cos(self.theta_1 - np.pi / 2) +
+                         phi_2)
+        d_2 = self.m_2 * (
+            (self.lc_2**2) + self.l_1 * self.lc_2 * np.cos(self.theta_2)) + 1
+        d_1 = self.m_1 * (self.lc_1**2) + self.m_2 * (
+            (self.l_1**2) + (self.lc_2**2) +
+            2 * self.l_1 * self.lc_2 * np.cos(self.theta_2)) + 2
+        theta_2_second_der = (pow(
+            (self.m_2 * (self.lc_2**2) + 1 - (d_2**2) / d_1),
+            -1)) * (applied_force +
+                    (d_2 / d_1) * phi_1 - self.m_2 * self.l_1 * self.lc_2 *
+                    (self.theta_1_der**2) * np.sin(self.theta_2) - phi_2)
+        theta_1_second_der = -(d_2 * theta_2_second_der + phi_1) / d_1
+        return theta_1_second_der, theta_2_second_der
+
+    def calculate_segment_positions(self, xp_1, yp_1):
+        """
+        Calculates the positions of the pivot point p2
+        and the tip of the second segment.
+        """
+        xp_2 = xp_1 + self.l_1 * np.sin(self.theta_1)
+        yp_2 = yp_1 - self.l_1 * np.cos(self.theta_1)
+        xtip = xp_2 + self.l_2 * np.sin(self.theta_2)
+        ytip = yp_2 - self.l_2 * np.cos(self.theta_2)
+        return xp_2, yp_2, xtip, ytip
 
     def end_episode(self):
         """
         Ending the episode by saving the history if it is the best one yet
         """
-        if len(self.history) > len(self.best_episode_history):
+        if len(self.history) < len(self.best_episode_history):
             self.best_episode_history = self.history
-
-    def show_best_history(self, delay):
-        """
-        Showing the history of the best episode
-        """
-        # Plotting the history (angle of the pole) of the best episode
-        timesteps = [i[0] for i in self.best_episode_history]
-        thetas = [i[1] for i in self.best_episode_history]
-        plt.plot(timesteps, thetas)
-        plt.xlabel("Timestep")
-        plt.ylabel("Angle (Radians)")
-        plt.show()
 
     def get_current_state(self):
         """
-        Returns current state, but with rounded values so that the number of possible states stays relatively small
+        Returns current state, but with rounded values so that the number
+        of possible states stays relatively small
         """
         return self.one_hot_encode(
-            (np.sign(self.x), np.round(self.x_vel), np.sign(self.theta),
-             np.round(self.theta_first_der)))
+            (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
 
-    def get_valid_actions(self, state):
+    def get_valid_actions(self):
         """
-        Returns list of actions that can be performed in a certain state, which will always be moving the cart left or right
+        Returns list of actions that can be performed in a certain state,
+        which will always be moving the cart left or right
         """
-        return ["left", "right"]
-
-    def theta_in_range(self):
-        """
-        Checking if theta (the angle) is in the valid range
-        """
-        return abs(self.theta) <= self.theta_m
-
-    def x_in_range(self):
-        """
-        Checking if the cart is in the horizontal range
-        """
-        return self.x > self.x_minus and self.x < self.x_plus
+        return [-1, 0, 1]
 
     def is_end_state(self):
         """
-        Checks whether s is an end state or not
+        Checks whether current state is an end state or not.
+        Current state is end state if tip is above goal height.
         """
-        return (not (self.theta_in_range() and self.x_in_range())
-                ) or self.steps_taken >= self.episode_len
+        _, _, _, ytip = self.calculate_segment_positions(0, 0)
+        if ytip >= self.l_2:
+            return True
+        return False
 
     def one_hot_encode(self, state):
         """
         One hot encoding
         """
-        one_hot_x = self.one_hot_encode_sign(state[0])
-        one_hot_x_vel = self.one_hot_encode_number(state[1])
-        one_hot_theta = self.one_hot_encode_sign(state[2])
-        one_hot_theta_first_der = self.one_hot_encode_number(state[3])
-        return np.concatenate(
-            (one_hot_x, one_hot_x_vel, one_hot_theta, one_hot_theta_first_der))
+        # TODO: Must find out reasonable one hot encoding of state
+        one_hot_theta_1 = self.one_hot_encode_sign(state[0])
+        one_hot_theta_1_der = self.one_hot_encode_sign(state[1])
+        one_hot_theta_2 = self.one_hot_encode_sign(state[2])
+        one_hot_theta_2_der = self.one_hot_encode_sign(state[3])
+        return np.concatenate((one_hot_theta_1, one_hot_theta_1_der,
+                               one_hot_theta_2, one_hot_theta_2_der))
 
     def one_hot_encode_sign(self, number):
         """
         One hot encoding sign numbers (and 0)
         """
+        sign = np.sign(number)
         one_hot = np.zeros(3)
-        one_hot[int(number) + 1] = 1
+        one_hot[int(sign) + 1] = 1
         return one_hot
 
     def one_hot_encode_number(self, number):
         """
         One hot encoding numbers
         """
-        n = 3
-        one_hot = np.zeros((2 * n) + 1)
-        if number >= -(n - 1) and number <= (n - 1):
-            one_hot[int(number) + n] = 1
-        elif number < -(n - 1):
-            one_hot[0] = 1
-        else:
-            one_hot[-1] = 1
-        return one_hot
+        # TODO: If we decide to use this, must probably change idk
+        # n = 3
+        # one_hot = np.zeros((2 * n) + 1)
+        # if number >= -(n - 1) and number <= (n - 1):
+        #     one_hot[int(number) + n] = 1
+        # elif number < -(n - 1):
+        #     one_hot[0] = 1
+        # else:
+        #     one_hot[-1] = 1
+        # return one_hot
+
+    def show_best_history(self):
+        """
+        Showing the history of the best episode
+        """
+        # TODO: Do we really need history? We are probably just showing games live.
+        # # Plotting the history (angle of the pole) of the best episode
+        # timesteps = [i[0] for i in self.best_episode_history]
+        # thetas = [i[1] for i in self.best_episode_history]
+        # plt.plot(timesteps, thetas)
+        # plt.xlabel("Timestep")
+        # plt.ylabel("Angle (Radians)")
+        # plt.show()
+
+    def show_state(self):
+        """
+        Shows the given state in pyplot.
+        """
+        xp_1, yp_1, xtip, ytip = self.calculate_segment_positions(2, 2)
+        plt.plot([2, xp_1, xtip], [2, yp_1, ytip])
+        plt.show()
+
+
+def main():
+    """
+    Main function for testing acrobat simworld
+    """
+    simworld = AcrobatSimWorld()
+    simworld.begin_episode()
+    simworld.show_state()
+    simworld.next_state(1)
+    simworld.show_state()
+    simworld.next_state(1)
+    simworld.show_state()
+    simworld.next_state(1)
+    simworld.show_state()
+    simworld.next_state(1)
+    simworld.show_state()
+    simworld.next_state(1)
+    simworld.show_state()
+    simworld.next_state(1)
+    simworld.show_state()
+
+
+if __name__ == '__main__':
+    main()
