@@ -211,12 +211,23 @@ class AcrobatSimWorld:
         Returns a coarse coded representation of the given state.
         """
 
-    def coarse_code_pair(self, var1, var2):
+    def coarse_code_pair(self, var1, var2, value_ranges):
         """
         Returns the coarse coding for a pair of variables.
         """
+        num_tilings = 4
+        num_tiles = [5, 5]
+        tilings = self.get_tilings(num_tilings, value_ranges, num_tiles)
+        bins = []
+        for tiling in tilings:
+            one_hot_bin_var1 = np.zeros(len(tiling) + 1)
+            one_hot_bin_var2 = np.zeros(len(tiling) + 1)
+            bins.append(np.digitize(var1, tiling))
+            bins.append(np.digitize(var2, tiling))
+        return np.array(bins)
 
-    def get_tilings(self, num_tilings, value_ranges, num_tiles):
+    def get_tilings(self, num_tilings: int, value_ranges: list,
+                    num_tiles: list):
         """
         Return a list of tilings
         num_tilings = 4
@@ -236,6 +247,7 @@ class AcrobatSimWorld:
                 tiling = self.get_tiling(value_range, num_tiles, offsets[i])
                 tiling_i.append(tiling)
             tilings.append(tiling_i)
+        return tilings
 
     def get_tiling(self, value_range, num_tiles, offset):
         """
