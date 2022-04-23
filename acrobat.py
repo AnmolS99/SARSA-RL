@@ -1,6 +1,5 @@
 """haakon8855, anmols99, mnottveit"""
 
-import enum
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -217,14 +216,6 @@ class AcrobatSimWorld:
         Returns the coarse coding for a pair of variables.
         """
 
-    def get_tiling(self, value_range, num_tiles, offset):
-        """
-        Returns a list of numbers indicating the border between two bins.
-        """
-        tiling = np.linspace(value_range[0], value_range[1],
-                             num_tiles + 1) + offset
-        return tiling[1:-1]
-
     def get_tilings(self, num_tilings, value_ranges, num_tiles):
         """
         Return a list of tilings
@@ -245,6 +236,14 @@ class AcrobatSimWorld:
                 tiling = self.get_tiling(value_range, num_tiles, offsets[i])
                 tiling_i.append(tiling)
             tilings.append(tiling_i)
+
+    def get_tiling(self, value_range, num_tiles, offset):
+        """
+        Returns a list of numbers indicating the border between two bins.
+        """
+        tiling = np.linspace(value_range[0], value_range[1],
+                             num_tiles + 1) + offset
+        return tiling[1:-1]
 
     def show_episode(self, interval: int = 10):
         """
