@@ -1,8 +1,8 @@
 """haakon8855, anmols99, mnottveit"""
 
-from matplotlib.animation import FuncAnimation
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 
 class AcrobatSimWorld:
@@ -82,6 +82,14 @@ class AcrobatSimWorld:
         self.theta_1_der = self.theta_1_der + self.timestep * theta_1_second_der
         self.theta_2 = self.theta_2 + self.timestep * self.theta_2_der
         self.theta_1 = self.theta_1 + self.timestep * self.theta_1_der
+        if self.theta_2 > 2 * np.pi:
+            self.theta_2 -= 2 * np.pi
+        elif self.theta_2 < -2 * np.pi:
+            self.theta_2 += 2 * np.pi
+        if self.theta_1 > 2 * np.pi:
+            self.theta_1 -= 2 * np.pi
+        elif self.theta_1 < -2 * np.pi:
+            self.theta_1 += 2 * np.pi
 
         # Calculate the reward
         reward = self.calc_reward()
@@ -145,14 +153,13 @@ class AcrobatSimWorld:
         """
         Ending the episode.
         """
-        self.show_episode()
 
     def get_current_state(self):
         """
         Returns current state, but with rounded values so that the number
         of possible states stays relatively small
         """
-        return self.one_hot_encode(
+        return self.coarse_code_state(
             (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
 
     def get_valid_actions(self, s):
@@ -214,6 +221,81 @@ class AcrobatSimWorld:
             one_hot[-1] = 1
         return one_hot
 
+    def coarse_code_state(self, state):
+        """
+        Returns a coarse coded representation of the given state.
+        """
+        theta_range = [-2 * np.pi, 2 * np.pi]
+        theta_der_range = [-5, 5]
+        theta_1 = state[0]
+        theta_1_der = state[1]
+        theta_2 = state[2]
+        theta_2_der = state[3]
+        one_hot_state = []
+        one_hot_state.append(
+            self.coarse_code_pair(theta_1, theta_1_der,
+                                  [theta_range, theta_der_range], 4, [4, 4]))
+        one_hot_state.append(
+            self.coarse_code_pair(theta_2, theta_2_der,
+                                  [theta_range, theta_der_range], 4, [4, 4]))
+        one_hot_state.append(
+            self.coarse_code_pair(theta_1, theta_2, [theta_range, theta_range],
+                                  4, [4, 4]))
+        one_hot_state.append(
+            self.coarse_code_pair(theta_1_der, theta_2_der,
+                                  [theta_der_range, theta_der_range], 4,
+                                  [4, 4]))
+        return np.array(one_hot_state).flatten()
+
+    def coarse_code_pair(self, var1, var2, value_ranges, num_tilings,
+                         num_tiles):
+        """
+        Returns the coarse coding for a pair of variables.
+        value_ranges = [[var1.min, var1.max], [var2.min, var2.max]]
+        """
+        tilings = self.get_tilings(num_tilings, value_ranges, num_tiles)
+        one_hot_tilings = []
+        for tiling in tilings:
+            one_hot_tiling = np.zeros(num_tiles[0] * num_tiles[1])
+            x_coord = np.digitize(var1, tiling[0])
+            y_coord = np.digitize(var2, tiling[1])
+            one_hot_index = x_coord + y_coord * num_tiles[1]
+            one_hot_tiling[one_hot_index] = 1
+            one_hot_tilings.append(one_hot_tiling)
+        return np.array(one_hot_tilings).flatten()
+
+    def get_tilings(self, num_tilings: int, value_ranges: list,
+                    num_tiles: list):
+        """
+        Return a list of tilings
+        num_tilings = 4
+        value_ranges = [[-6.28, 6.28], [-5, 5]]
+        num_tiles = [10, 10] ten tiles in x and ten tiles in y
+        """
+        offsets = []
+        for j, value_range in enumerate(value_ranges):
+            value_range_size = value_range[1] - value_range[0]
+            offset_magnitude = value_range_size / (2 * num_tiles[j])
+            offsets.append(
+                np.linspace(-offset_magnitude, offset_magnitude, num_tilings))
+        tilings = []
+        for i in range(num_tilings):
+            tiling_i = []
+            for j, value_range in enumerate(value_ranges):
+                tiling = self.get_tiling(value_range, num_tiles[j],
+                                         offsets[j][i])
+                tiling_i.append(tiling)
+            tilings.append(tiling_i)
+        return np.array(np.round(tilings, 3))
+
+    def get_tiling(self, value_range, num_tiles, offset):
+        """
+        Returns a list of numbers indicating the border between two bins.
+        """
+        tiling = np.linspace(value_range[0], value_range[1],
+                             num_tiles + 1) + offset
+        return tiling[1:-1]
+
     def rev_one_hot_action(self, one_hot_a):
         """
         Reversing one-hot encoding for action
@@ -227,7 +309,7 @@ class AcrobatSimWorld:
         else:
             raise Exception("Invalid one-hot action")
 
-    def show_episode(self, info: str, interval: int = 10):
+    def show_episode(self, info: str = "", interval: int = 10):
         """
         Shows the given state in pyplot.
         """
@@ -262,13 +344,24 @@ def main():
     """
     simworld = AcrobatSimWorld()
     simworld.begin_episode()
-    for _ in range(200):
-        simworld.next_state(1)
-    # for _ in range(50):
-    #     simworld.next_state(-1)
-    for _ in range(1000):
-        simworld.next_state(0)
-    simworld.show_episode(interval=20)
+    # for _ in range(200):
+    #     simworld.next_state(1)
+    # # for _ in range(50):
+    # #     simworld.next_state(-1)
+    # for _ in range(1000):
+    #     simworld.next_state(0)
+    # simworld.show_episode(interval=20)
+
+    num_tilings = 4
+    value_ranges = [[-5, 5], [-5, 5]]
+    num_tiles = [4, 4]
+    tilings = simworld.get_tilings(num_tilings, value_ranges, num_tiles)
+    print(tilings)
+    coarse_coding = simworld.coarse_code_pair(-2.9, -3.74, value_ranges,
+                                              num_tilings, num_tiles)
+    print(coarse_coding)
+    coarse_coding = simworld.get_current_state()
+    print(f'len: {len(coarse_coding)}, oh: {coarse_coding}')
 
 
 if __name__ == '__main__':
