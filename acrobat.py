@@ -73,42 +73,50 @@ class AcrobatSimWorld:
         else:  # No force
             applied_force = 0
 
-        # Calculate the second derivatives of the angles
-        theta_1_second_der, theta_2_second_der = self.calculate_angular_acceleration(
-            applied_force)
-
-        # Update the state variables with the calculated second derivatives
-        self.theta_2_der = self.theta_2_der + self.timestep * theta_2_second_der
-        self.theta_1_der = self.theta_1_der + self.timestep * theta_1_second_der
-        self.theta_2 = self.theta_2 + self.timestep * self.theta_2_der
-        self.theta_1 = self.theta_1 + self.timestep * self.theta_1_der
-        if self.theta_2 > 2 * np.pi:
-            self.theta_2 -= 2 * np.pi
-        elif self.theta_2 < -2 * np.pi:
-            self.theta_2 += 2 * np.pi
-        if self.theta_1 > 2 * np.pi:
-            self.theta_1 -= 2 * np.pi
-        elif self.theta_1 < -2 * np.pi:
-            self.theta_1 += 2 * np.pi
-
-        # Calculate the reward
-        reward = self.calc_reward()
-        if self.is_end_state():
-            reward += 1000
-        else:
-            reward += 0
-
-        # Increment number of steps taken
-        self.steps_taken += 1
-
-        # Adding the current step to the history
-        xp_1, yp_1 = self.center_plot
-        xp_2, yp_2, xtip, ytip = self.calculate_segment_positions(xp_1, yp_1)
-        x_coords = [self.center_plot[0], xp_2, xtip]
-        y_coords = [self.center_plot[1], yp_2, ytip]
-        self.history.append((x_coords, y_coords))
+        reward = self.perform_actions(applied_force)
 
         return self.get_current_state(), reward
+
+    def perform_actions(self, applied_force: int):
+        """
+        Performs one action given the applied force from that action.
+        """
+        reward = 0
+        for _ in range(4):
+            # Calculate the second derivatives of the angles
+            theta_1_second_der, theta_2_second_der = self.calculate_angular_acceleration(
+                applied_force)
+
+            # Update the state variables with the calculated second derivatives
+            self.theta_2_der = self.theta_2_der + self.timestep * theta_2_second_der
+            self.theta_1_der = self.theta_1_der + self.timestep * theta_1_second_der
+            self.theta_2 = self.theta_2 + self.timestep * self.theta_2_der
+            self.theta_1 = self.theta_1 + self.timestep * self.theta_1_der
+            if self.theta_2 > 2 * np.pi:
+                self.theta_2 -= 2 * np.pi
+            elif self.theta_2 < -2 * np.pi:
+                self.theta_2 += 2 * np.pi
+            if self.theta_1 > 2 * np.pi:
+                self.theta_1 -= 2 * np.pi
+            elif self.theta_1 < -2 * np.pi:
+                self.theta_1 += 2 * np.pi
+
+            # Increment number of steps taken
+            self.steps_taken += 1
+
+            # Adding the current step to the history
+            xp_1, yp_1 = self.center_plot
+            xp_2, yp_2, xtip, ytip = self.calculate_segment_positions(
+                xp_1, yp_1)
+            x_coords = [self.center_plot[0], xp_2, xtip]
+            y_coords = [self.center_plot[1], yp_2, ytip]
+            self.history.append((x_coords, y_coords))
+
+            # Calculate the reward
+            reward += self.calc_reward()
+
+        # TODO: test negative reward if no end state was reached
+        return reward
 
     def calculate_angular_acceleration(self, applied_force):
         """
@@ -159,8 +167,10 @@ class AcrobatSimWorld:
         Returns current state, but with rounded values so that the number
         of possible states stays relatively small
         """
-        return self.coarse_code_state(
+        state = self.coarse_code_state(
             (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
+        flattened_state = state.flatten()
+        return flattened_state
 
     def get_valid_actions(self, s):
         """
@@ -183,9 +193,26 @@ class AcrobatSimWorld:
         """
         Calculating the reward based on height of tip
         """
+        reward = 0
+        if self.is_end_state():
+            reward += 1
+            return reward
+        else:
+            reward += -1
+
+        # Tip lower segment distance from bottom
         _, _, _, ytip = self.calculate_segment_positions()
-        bottom = -self.l_1 - self.l_2
-        return ytip - bottom
+        bottom = -(self.l_1 + self.l_2)
+        reward += (ytip - bottom)
+
+        # Tip upper segment distance from bottom
+        _, yp_2, _, _ = self.calculate_segment_positions()
+        bottom = -(self.l_1)
+        reward += (yp_2 - bottom)
+
+        # reward += np.abs(self.theta_1_der)
+        reward += np.abs(self.theta_2_der)
+        return reward
 
     def one_hot_encode(self, state):
         """
@@ -232,17 +259,25 @@ class AcrobatSimWorld:
         theta_2 = state[2]
         theta_2_der = state[3]
         one_hot_state = []
-        one_hot_state.append(
+        one_hot_state += list(
             self.coarse_code_pair(theta_1, theta_1_der,
                                   [theta_range, theta_der_range], 4, [4, 4]))
-        one_hot_state.append(
+        one_hot_state += list(
             self.coarse_code_pair(theta_2, theta_2_der,
                                   [theta_range, theta_der_range], 4, [4, 4]))
-        one_hot_state.append(
+        one_hot_state += list(
             self.coarse_code_pair(theta_1, theta_2, [theta_range, theta_range],
                                   4, [4, 4]))
-        one_hot_state.append(
+        one_hot_state += list(
             self.coarse_code_pair(theta_1_der, theta_2_der,
+                                  [theta_der_range, theta_der_range], 4,
+                                  [4, 4]))
+        one_hot_state += list(
+            self.coarse_code_pair(theta_1, theta_2_der,
+                                  [theta_der_range, theta_der_range], 4,
+                                  [4, 4]))
+        one_hot_state += list(
+            self.coarse_code_pair(theta_2, theta_1_der,
                                   [theta_der_range, theta_der_range], 4,
                                   [4, 4]))
         return np.array(one_hot_state).flatten()
@@ -352,7 +387,7 @@ def main():
     #     simworld.next_state(0)
     # simworld.show_episode(interval=20)
 
-    num_tilings = 4
+    num_tilings = 2
     value_ranges = [[-5, 5], [-5, 5]]
     num_tiles = [4, 4]
     tilings = simworld.get_tilings(num_tilings, value_ranges, num_tiles)

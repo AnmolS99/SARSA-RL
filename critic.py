@@ -53,7 +53,6 @@ class Critic:
         """
         Returns the policy, s and a are one-hot
         """
-        # If there is no policy for the pair (s, a), return 0
         s_a = np.concatenate((s, a))
         return self.nn(s_a[None])
 
@@ -66,7 +65,7 @@ class Critic:
 
         for action in valid_actions:
 
-            policy_score = self.Q(s, action)
+            policy_score = float(self.Q(s, action))
 
             # If this action has a higher score than the current optimal one
             if optimal_score == None or policy_score > optimal_score:
@@ -80,7 +79,8 @@ class Critic:
         Returns an action, with a probability of choosing a random action instead of the optimal one
         """
         # Having a probability of epsilon of choosing random action
-        if random.random() <= self.epsilon:
+        use = True
+        if use and random.random() <= self.epsilon:
             return random.choice(valid_actions)
         else:
             return self.get_optimal_action(s, valid_actions)
