@@ -1,5 +1,6 @@
 """haakon8855, anmols99, mnottveit"""
 
+from turtle import xcor
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -214,19 +215,20 @@ class AcrobatSimWorld:
     def coarse_code_pair(self, var1, var2, value_ranges):
         """
         Returns the coarse coding for a pair of variables.
+        value_ranges = [[var1.min, var1.max], [var2.min, var2.max]]
         """
         num_tilings = 4
-        num_tiles = [5, 5]
+        num_tiles = [4, 4]
         tilings = self.get_tilings(num_tilings, value_ranges, num_tiles)
-        bins = []
+        one_hot_tilings = []
         for tiling in tilings:
-            one_hot_bin_var1 = np.zeros(len(tiling[0]) + 1)
-            one_hot_bin_var2 = np.zeros(len(tiling[1]) + 1)
-            one_hot_bin_var1[np.digitize(var1, tiling[0])] = 1
-            one_hot_bin_var2[np.digitize(var2, tiling[1])] = 1
-            bins.append(one_hot_bin_var1)
-            bins.append(one_hot_bin_var2)
-        return np.array(bins)
+            one_hot_tiling = np.zeros(num_tiles[0] * num_tiles[1])
+            x_coord = np.digitize(var1, tiling[0])
+            y_coord = np.digitize(var2, tiling[1])
+            one_hot_index = x_coord + y_coord * num_tiles[1]
+            one_hot_tiling[one_hot_index] = 1
+            one_hot_tilings.append(one_hot_tiling)
+        return np.array(one_hot_tilings)
 
     def get_tilings(self, num_tilings: int, value_ranges: list,
                     num_tiles: list):
@@ -237,19 +239,20 @@ class AcrobatSimWorld:
         num_tiles = [10, 10] ten tiles in x and ten tiles in y
         """
         offsets = []
-        for i, value_range in enumerate(value_ranges):
+        for j, value_range in enumerate(value_ranges):
             value_range_size = value_range[1] - value_range[0]
-            offset_magnitude = value_range_size / (2 * num_tiles[i])
+            offset_magnitude = value_range_size / (2 * num_tiles[j])
             offsets.append(
                 np.linspace(-offset_magnitude, offset_magnitude, num_tilings))
         tilings = []
         for i in range(num_tilings):
             tiling_i = []
-            for value_range in value_ranges:
-                tiling = self.get_tiling(value_range, num_tiles, offsets[i])
+            for j, value_range in enumerate(value_ranges):
+                tiling = self.get_tiling(value_range, num_tiles[j],
+                                         offsets[j][i])
                 tiling_i.append(tiling)
             tilings.append(tiling_i)
-        return tilings
+        return np.array(np.round(tilings, 3))
 
     def get_tiling(self, value_range, num_tiles, offset):
         """
@@ -289,13 +292,21 @@ def main():
     """
     simworld = AcrobatSimWorld()
     simworld.begin_episode()
-    for _ in range(200):
-        simworld.next_state(1)
-    # for _ in range(50):
-    #     simworld.next_state(-1)
-    for _ in range(1000):
-        simworld.next_state(0)
-    simworld.show_episode(interval=20)
+    # for _ in range(200):
+    #     simworld.next_state(1)
+    # # for _ in range(50):
+    # #     simworld.next_state(-1)
+    # for _ in range(1000):
+    #     simworld.next_state(0)
+    # simworld.show_episode(interval=20)
+
+    num_tilings = 4
+    value_ranges = [[-5, 5], [-5, 5]]
+    num_tiles = [4, 4]
+    tilings = simworld.get_tilings(num_tilings, value_ranges, num_tiles)
+    print(tilings)
+    coarse_coding = simworld.coarse_code_pair(3.76, 3.84, value_ranges)
+    print(coarse_coding)
 
 
 if __name__ == '__main__':
