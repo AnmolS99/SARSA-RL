@@ -82,6 +82,14 @@ class AcrobatSimWorld:
         self.theta_1_der = self.theta_1_der + self.timestep * theta_1_second_der
         self.theta_2 = self.theta_2 + self.timestep * self.theta_2_der
         self.theta_1 = self.theta_1 + self.timestep * self.theta_1_der
+        if self.theta_2 > 2 * np.pi:
+            self.theta_2 -= 2 * np.pi
+        elif self.theta_2 < -2 * np.pi:
+            self.theta_2 += 2 * np.pi
+        if self.theta_1 > 2 * np.pi:
+            self.theta_1 -= 2 * np.pi
+        elif self.theta_1 < -2 * np.pi:
+            self.theta_1 += 2 * np.pi
 
         # Calculate the reward
         if self.is_end_state():
@@ -211,14 +219,34 @@ class AcrobatSimWorld:
         """
         Returns a coarse coded representation of the given state.
         """
+        theta_range = [-2 * np.pi, 2 * np.pi]
+        theta_der_range = [-5, 5]
+        theta_1 = state[0]
+        theta_1_der = state[1]
+        theta_2 = state[2]
+        theta_2_der = state[3]
+        one_hot_state = []
+        one_hot_state.append(
+            self.coarse_code_pair(theta_1, theta_1_der,
+                                  [theta_range, theta_der_range], 4, [4, 4]))
+        one_hot_state.append(
+            self.coarse_code_pair(theta_2, theta_2_der,
+                                  [theta_range, theta_der_range], 4, [4, 4]))
+        one_hot_state.append(
+            self.coarse_code_pair(theta_1, theta_2, [theta_range, theta_range],
+                                  4, [4, 4]))
+        one_hot_state.append(
+            self.coarse_code_pair(theta_1_der, theta_2_der,
+                                  [theta_der_range, theta_der_range], 4,
+                                  [4, 4]))
+        return np.array(one_hot_state).flatten()
 
-    def coarse_code_pair(self, var1, var2, value_ranges):
+    def coarse_code_pair(self, var1, var2, value_ranges, num_tilings,
+                         num_tiles):
         """
         Returns the coarse coding for a pair of variables.
         value_ranges = [[var1.min, var1.max], [var2.min, var2.max]]
         """
-        num_tilings = 4
-        num_tiles = [4, 4]
         tilings = self.get_tilings(num_tilings, value_ranges, num_tiles)
         one_hot_tilings = []
         for tiling in tilings:
@@ -228,7 +256,7 @@ class AcrobatSimWorld:
             one_hot_index = x_coord + y_coord * num_tiles[1]
             one_hot_tiling[one_hot_index] = 1
             one_hot_tilings.append(one_hot_tiling)
-        return np.array(one_hot_tilings)
+        return np.array(one_hot_tilings).flatten()
 
     def get_tilings(self, num_tilings: int, value_ranges: list,
                     num_tiles: list):
@@ -305,8 +333,11 @@ def main():
     num_tiles = [4, 4]
     tilings = simworld.get_tilings(num_tilings, value_ranges, num_tiles)
     print(tilings)
-    coarse_coding = simworld.coarse_code_pair(3.76, 3.84, value_ranges)
+    coarse_coding = simworld.coarse_code_pair(-2.9, -3.74, value_ranges,
+                                              num_tilings, num_tiles)
     print(coarse_coding)
+    coarse_coding = simworld.get_current_state()
+    print(f'len: {len(coarse_coding)}, oh: {coarse_coding}')
 
 
 if __name__ == '__main__':
