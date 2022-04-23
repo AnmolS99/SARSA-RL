@@ -1,6 +1,5 @@
 """haakon8855, anmols99, mnottveit"""
 
-from turtle import xcor
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -61,10 +60,11 @@ class AcrobatSimWorld:
 
         return self.get_current_state()
 
-    def next_state(self, action: int):
+    def next_state(self, action: np.array):
         """
         Performing an action and going to the next state.
         """
+        action = self.rev_one_hot_action(action)
 
         if action < 0:  # Force to left
             applied_force = -self.force
@@ -92,10 +92,11 @@ class AcrobatSimWorld:
             self.theta_1 += 2 * np.pi
 
         # Calculate the reward
+        reward = self.calc_reward()
         if self.is_end_state():
-            reward = 1
+            reward += 1000
         else:
-            reward = 0
+            reward += 0
 
         # Increment number of steps taken
         self.steps_taken += 1
@@ -137,7 +138,7 @@ class AcrobatSimWorld:
         theta_1_second_der = -(d_2 * theta_2_second_der + phi_1) / d_1
         return theta_1_second_der, theta_2_second_der
 
-    def calculate_segment_positions(self, xp_1, yp_1):
+    def calculate_segment_positions(self, xp_1=0, yp_1=0):
         """
         Calculates the positions of the pivot point p2
         and the tip of the second segment.
@@ -152,34 +153,39 @@ class AcrobatSimWorld:
         """
         Ending the episode.
         """
-        self.show_episode()
 
     def get_current_state(self):
         """
         Returns current state, but with rounded values so that the number
         of possible states stays relatively small
         """
-        # return self.one_hot_encode(
-        #     (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
         return self.coarse_code_state(
             (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
 
-    def get_valid_actions(self):
+    def get_valid_actions(self, s):
         """
         Returns list of actions that can be performed in a certain state,
         which will always be moving the cart left or right
         """
-        return [-1, 0, 1]
+        return np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
     def is_end_state(self):
         """
         Checks whether current state is an end state or not.
         Current state is end state if tip is above goal height.
         """
-        _, _, _, ytip = self.calculate_segment_positions(0, 0)
+        _, _, _, ytip = self.calculate_segment_positions()
         if ytip >= self.l_2:
             return True
         return False
+
+    def calc_reward(self):
+        """
+        Calculating the reward based on height of tip
+        """
+        _, _, _, ytip = self.calculate_segment_positions()
+        bottom = -self.l_1 - self.l_2
+        return ytip - bottom
 
     def one_hot_encode(self, state):
         """
@@ -290,7 +296,20 @@ class AcrobatSimWorld:
                              num_tiles + 1) + offset
         return tiling[1:-1]
 
-    def show_episode(self, interval: int = 10):
+    def rev_one_hot_action(self, one_hot_a):
+        """
+        Reversing one-hot encoding for action
+        """
+        if one_hot_a[0] == 1:
+            return -1
+        elif one_hot_a[1] == 1:
+            return 0
+        elif one_hot_a[2] == 1:
+            return 1
+        else:
+            raise Exception("Invalid one-hot action")
+
+    def show_episode(self, info: str = "", interval: int = 10):
         """
         Shows the given state in pyplot.
         """
@@ -302,13 +321,18 @@ class AcrobatSimWorld:
                            lw=2)[0]
 
         def animate(i):
+            if i == (len(self.history) - 1):
+                plt.close()
             x_coords = self.history[i][0]
             y_coords = self.history[i][1]
             segments.set_xdata(x_coords)
             segments.set_ydata(y_coords)
-            ax.set_title(str(i))
+            ax.set_title(f"Step: {i}, r: {self.calc_reward()}, {info}")
 
-        _ = FuncAnimation(fig, animate, interval=interval)
+        _ = FuncAnimation(fig,
+                          animate,
+                          interval=interval,
+                          frames=len(self.history))
         plt.draw()
         plt.show()
         return segments
