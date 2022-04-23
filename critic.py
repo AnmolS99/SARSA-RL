@@ -2,8 +2,8 @@ import random
 import numpy as np
 import tensorflow as tf
 
-class Critic:
 
+class Critic:
     """
     The Critic class
     """
@@ -15,7 +15,6 @@ class Critic:
         self.disc_factor = disc_factor
         self.epsilon = epsilon
         self.epsilon_decay_rate = epsilon_decay_rate
-
 
     def create_nn(self, nn_specs):
         """
@@ -52,11 +51,10 @@ class Critic:
 
     def Q(self, s, a):
         """
-        Returns the policy
+        Returns the policy, s and a are one-hot
         """
         # If there is no policy for the pair (s, a), return 0
-        # IMPORTANT: s is assumed to be a list and is therefore converted to tuple
-        s_a = np.concatenate(s, a)
+        s_a = np.concatenate((s, a))
         return self.nn(s_a[None])
 
     def get_optimal_action(self, s, valid_actions):
@@ -86,4 +84,3 @@ class Critic:
             return random.choice(valid_actions)
         else:
             return self.get_optimal_action(s, valid_actions)
-        
