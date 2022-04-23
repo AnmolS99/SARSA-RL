@@ -220,10 +220,12 @@ class AcrobatSimWorld:
         tilings = self.get_tilings(num_tilings, value_ranges, num_tiles)
         bins = []
         for tiling in tilings:
-            one_hot_bin_var1 = np.zeros(len(tiling) + 1)
-            one_hot_bin_var2 = np.zeros(len(tiling) + 1)
-            bins.append(np.digitize(var1, tiling))
-            bins.append(np.digitize(var2, tiling))
+            one_hot_bin_var1 = np.zeros(len(tiling[0]) + 1)
+            one_hot_bin_var2 = np.zeros(len(tiling[1]) + 1)
+            one_hot_bin_var1[np.digitize(var1, tiling[0])] = 1
+            one_hot_bin_var2[np.digitize(var2, tiling[1])] = 1
+            bins.append(one_hot_bin_var1)
+            bins.append(one_hot_bin_var2)
         return np.array(bins)
 
     def get_tilings(self, num_tilings: int, value_ranges: list,
