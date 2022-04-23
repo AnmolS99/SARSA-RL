@@ -1,5 +1,6 @@
 """haakon8855, anmols99, mnottveit"""
 
+import enum
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -150,7 +151,9 @@ class AcrobatSimWorld:
         Returns current state, but with rounded values so that the number
         of possible states stays relatively small
         """
-        return self.one_hot_encode(
+        # return self.one_hot_encode(
+        #     (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
+        return self.coarse_code_state(
             (self.theta_1, self.theta_1_der, self.theta_2, self.theta_2_der))
 
     def get_valid_actions(self):
@@ -203,6 +206,45 @@ class AcrobatSimWorld:
         else:
             one_hot[-1] = 1
         return one_hot
+
+    def coarse_code_state(self, state):
+        """
+        Returns a coarse coded representation of the given state.
+        """
+
+    def coarse_code_pair(self, var1, var2):
+        """
+        Returns the coarse coding for a pair of variables.
+        """
+
+    def get_tiling(self, value_range, num_tiles, offset):
+        """
+        Returns a list of numbers indicating the border between two bins.
+        """
+        tiling = np.linspace(value_range[0], value_range[1],
+                             num_tiles + 1) + offset
+        return tiling[1:-1]
+
+    def get_tilings(self, num_tilings, value_ranges, num_tiles):
+        """
+        Return a list of tilings
+        num_tilings = 4
+        value_ranges = [[-6.28, 6.28], [-5, 5]]
+        num_tiles = [10, 10] ten tiles in x and ten tiles in y
+        """
+        offsets = []
+        for i, value_range in enumerate(value_ranges):
+            value_range_size = value_range[1] - value_range[0]
+            offset_magnitude = value_range_size / (2 * num_tiles[i])
+            offsets.append(
+                np.linspace(-offset_magnitude, offset_magnitude, num_tilings))
+        tilings = []
+        for i in range(num_tilings):
+            tiling_i = []
+            for value_range in value_ranges:
+                tiling = self.get_tiling(value_range, num_tiles, offsets[i])
+                tiling_i.append(tiling)
+            tilings.append(tiling_i)
 
     def show_episode(self, interval: int = 10):
         """
