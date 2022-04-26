@@ -12,7 +12,11 @@ class AcrobatSimWorld:
     Action representation: action ∈ {-1, 0, 1}
     """
 
-    def __init__(self, gravity=9.8, timestep=0.05) -> None:
+    def __init__(self,
+                 max_steps: int = 3200,
+                 gravity: float = 9.8,
+                 timestep: float = 0.05) -> None:
+        self.max_steps = max_steps
         self.gravity = gravity
         self.timestep = timestep
 
@@ -34,6 +38,9 @@ class AcrobatSimWorld:
         self.steps_taken = 0
         self.center_plot = (3, 3)
         self.history = []
+        self.theta_hist = []
+        self.theta1d_hist = []
+        self.theta2d_hist = []
 
     def begin_episode(self):
         """
@@ -57,6 +64,8 @@ class AcrobatSimWorld:
         x_coords = [self.center_plot[0], xp_2, xtip]
         y_coords = [self.center_plot[1], yp_2, ytip]
         self.history = [(x_coords, y_coords)]
+        self.theta1d_hist = [self.theta_1_der]
+        self.theta2d_hist = [self.theta_2_der]
 
         return self.get_current_state()
 
@@ -111,11 +120,12 @@ class AcrobatSimWorld:
             x_coords = [self.center_plot[0], xp_2, xtip]
             y_coords = [self.center_plot[1], yp_2, ytip]
             self.history.append((x_coords, y_coords))
+            self.theta1d_hist.append(self.theta_1_der)
+            self.theta2d_hist.append(self.theta_2_der)
 
             # Calculate the reward
             reward += self.calc_reward()
 
-        # TODO: test negative reward if no end state was reached
         return reward
 
     def calculate_angular_acceleration(self, applied_force):
@@ -172,7 +182,7 @@ class AcrobatSimWorld:
         flattened_state = state.flatten()
         return flattened_state
 
-    def get_valid_actions(self, s):
+    def get_valid_actions(self, _):
         """
         Returns list of actions that can be performed in a certain state,
         which will always be moving the cart left or right
@@ -195,7 +205,7 @@ class AcrobatSimWorld:
         """
         reward = 0
         if self.is_end_state():
-            reward += 1
+            reward += 1000 / self.steps_taken
             return reward
         else:
             reward += -1
@@ -205,13 +215,16 @@ class AcrobatSimWorld:
         bottom = -(self.l_1 + self.l_2)
         reward += (ytip - bottom)
 
-        # Tip upper segment distance from bottom
-        _, yp_2, _, _ = self.calculate_segment_positions()
-        bottom = -(self.l_1)
-        reward += (yp_2 - bottom)
+        # # Tip upper segment distance from bottom
+        # _, yp_2, _, _ = self.calculate_segment_positions()
+        # bottom = -(self.l_1)
+        # reward += (yp_2 - bottom)
 
+        # # Angular velocity of upper segment
         # reward += np.abs(self.theta_1_der)
-        reward += np.abs(self.theta_2_der)
+
+        # # Angular velocity of lower segment
+        # reward += np.abs(self.theta_2_der)
         return reward
 
     def one_hot_encode(self, state):
@@ -253,7 +266,8 @@ class AcrobatSimWorld:
         Returns a coarse coded representation of the given state.
         """
         theta_range = [-2 * np.pi, 2 * np.pi]
-        theta_der_range = [-5, 5]
+        theta_1_der_range = [-5, 5]
+        theta_2_der_range = [-7, 7]
         theta_1 = state[0]
         theta_1_der = state[1]
         theta_2 = state[2]
@@ -261,25 +275,23 @@ class AcrobatSimWorld:
         one_hot_state = []
         one_hot_state += list(
             self.coarse_code_pair(theta_1, theta_1_der,
-                                  [theta_range, theta_der_range], 4, [4, 4]))
+                                  [theta_range, theta_1_der_range], 6, [4, 4]))
         one_hot_state += list(
             self.coarse_code_pair(theta_2, theta_2_der,
-                                  [theta_range, theta_der_range], 4, [4, 4]))
+                                  [theta_range, theta_2_der_range], 6, [4, 4]))
         one_hot_state += list(
             self.coarse_code_pair(theta_1, theta_2, [theta_range, theta_range],
-                                  4, [4, 4]))
+                                  6, [4, 4]))
         one_hot_state += list(
             self.coarse_code_pair(theta_1_der, theta_2_der,
-                                  [theta_der_range, theta_der_range], 4,
+                                  [theta_1_der_range, theta_2_der_range], 6,
                                   [4, 4]))
         one_hot_state += list(
             self.coarse_code_pair(theta_1, theta_2_der,
-                                  [theta_der_range, theta_der_range], 4,
-                                  [4, 4]))
+                                  [theta_range, theta_2_der_range], 6, [4, 4]))
         one_hot_state += list(
             self.coarse_code_pair(theta_2, theta_1_der,
-                                  [theta_der_range, theta_der_range], 4,
-                                  [4, 4]))
+                                  [theta_range, theta_1_der_range], 6, [4, 4]))
         return np.array(one_hot_state).flatten()
 
     def coarse_code_pair(self, var1, var2, value_ranges, num_tilings,
@@ -348,12 +360,21 @@ class AcrobatSimWorld:
         """
         Shows the given state in pyplot.
         """
+        plt.plot(self.theta1d_hist)
+        plt.show()
+        plt.plot(self.theta2d_hist)
+        plt.show()
+
         fig, ax = plt.subplots(figsize=(5, 5))
         ax.set(xlim=(0, 6), ylim=(0, 4.5))
         segments = ax.plot(self.history[0][0],
                            self.history[0][1],
                            color='red',
-                           lw=2)[0]
+                           lw=5,
+                           marker='o',
+                           markerfacecolor='grey',
+                           markersize=10,
+                           markeredgecolor='black')[0]
 
         def animate(i):
             if i == (len(self.history) - 1):
@@ -371,33 +392,3 @@ class AcrobatSimWorld:
         plt.draw()
         plt.show()
         return segments
-
-
-def main():
-    """
-    Main function for testing acrobat simworld
-    """
-    simworld = AcrobatSimWorld()
-    simworld.begin_episode()
-    # for _ in range(200):
-    #     simworld.next_state(1)
-    # # for _ in range(50):
-    # #     simworld.next_state(-1)
-    # for _ in range(1000):
-    #     simworld.next_state(0)
-    # simworld.show_episode(interval=20)
-
-    num_tilings = 2
-    value_ranges = [[-5, 5], [-5, 5]]
-    num_tiles = [4, 4]
-    tilings = simworld.get_tilings(num_tilings, value_ranges, num_tiles)
-    print(tilings)
-    coarse_coding = simworld.coarse_code_pair(-2.9, -3.74, value_ranges,
-                                              num_tilings, num_tiles)
-    print(coarse_coding)
-    coarse_coding = simworld.get_current_state()
-    print(f'len: {len(coarse_coding)}, oh: {coarse_coding}')
-
-
-if __name__ == '__main__':
-    main()

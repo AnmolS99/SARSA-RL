@@ -77,7 +77,7 @@ class RLSystem():
             # Training V_theta on each case
             s_a = [i[0] for i in targets]
             y = [i[1] for i in targets]
-            self.critic.nn.fit(np.array(s_a), np.array(y), epochs=20)
+            self.critic.nn.fit(np.array(s_a), np.array(y), epochs=10)
 
             # Storing the number of steps taken in the current (finished) episode
             result_list.append(self.sim_world.steps_taken)
@@ -87,13 +87,13 @@ class RLSystem():
             # Showing episode
             if (i % 50 == 0):
                 self.sim_world.show_episode(f"Episode: {i}")
-                plt.plot(result_list)
+                plt.plot(np.array(result_list) // 4)
                 plt.xlabel("Episode")
                 plt.ylabel("Timestep")
                 plt.show()
 
         # Plotting the result list
-        plt.plot(result_list)
+        plt.plot(np.array(result_list) // 4)
         plt.xlabel("Episode")
         plt.ylabel("Timestep")
         plt.show()

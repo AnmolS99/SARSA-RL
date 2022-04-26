@@ -22,9 +22,9 @@ def run():
 
     # Pole balancing with ANN-based critic
     rls = RLSystem(asw,
-                   num_episodes=200,
+                   num_episodes=100,
                    max_steps=800,
-                   critic_lr=0.01,
+                   critic_lr=0.001,
                    critic_disc_factor=0.99,
                    nn_specs=(input_len, 100, 1))
     rls.sarsa()
