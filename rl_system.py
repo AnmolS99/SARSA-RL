@@ -32,8 +32,10 @@ class RLSystem():
         # Repeating for each episode
         for i in range(self.num_episodes):
 
-            # Decreasing epsilon for actor, since we want less exploration as number of episodes goes up
-            # Every time we have been through a percent of num_episodes, epsilon is decreased
+            # Decreasing epsilon for actor, since we want less
+            # exploration as number of episodes goes up
+            # Every time we have been through a percent
+            # of num_episodes, epsilon is decreased
             if self.num_episodes >= 100:
                 if i % (self.num_episodes // 100) == 0:
                     self.critic.epsilon *= (1 - self.critic.epsilon_decay_rate)
@@ -44,13 +46,15 @@ class RLSystem():
             s = self.sim_world.begin_episode()
             a = self.critic.policy(s, self.sim_world.get_valid_actions(s))
 
-            # Initializing list of target values to the states in critic on the form [(s_0, V_star(s_0)), (s_1, V_star(s_1)), ...]
+            # Initializing list of target values to the states in critic on
+            # the form [(s_0, V_star(s_0)), (s_1, V_star(s_1)), ...]
             targets = []
 
             # Repeating for each step of the episode
             for _ in range(self.max_steps):
 
-                # Performing the action a in state s and ending up in state s_next and recieving reward r
+                # Performing the action a in state s and ending up in state
+                # s_next and recieving reward r
                 s_next, r = self.sim_world.next_state(a)
 
                 # Getting the action (a_next) to do in state s_next
@@ -85,7 +89,7 @@ class RLSystem():
             print(self.sim_world.steps_taken // 4)
 
             # Showing episode
-            if (i % 50 == 0):
+            if i % 50 == 0:
                 self.sim_world.show_episode(f"Episode: {i}")
                 plt.plot(np.array(result_list) // 4)
                 plt.xlabel("Episode")
