@@ -2,7 +2,7 @@
 
 ## Description
 
-A reinforcement learning system using the Sarsa RL Algorithm for learning to play a simple physics game. The AI has been trained to play a game, which we here will refer to as the *The Acrobat Game*. The acrobat game is a simulated game designed to approximate an acrobat holding on to a horizontal bar using their hands.
+This project was part of the Artificial Intelligence Programming (IT3105) course at NTNU spring 2022. The aim of this project was to create a reinforcement learning system using the Sarsa RL Algorithm to learn to play a simple physics game. The AI has been trained to play a game, which we will refer to as the *The Acrobat Game*. The acrobat game is a simulated game designed to approximate an acrobat holding on to a horizontal bar using their hands.
 
 ### Architecture
 
@@ -20,6 +20,10 @@ The actor’s goal is to apply forces to the pivot point in such a way that the 
 ## Usage
 
 To run this program, download or clone the repository and run main.py using Python 3.9 or higher.
+
+```
+python3 main.py
+```
 
 ## Requirements
 
