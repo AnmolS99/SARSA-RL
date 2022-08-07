@@ -6,14 +6,8 @@ from rl_system import RLSystem
 
 def run():
     """
-    stupid pylint
+    Creating the SimWorld, Critic and RL-system and running the SARSA algorithm
     """
-    # Setting random seeds to be able to reproduce results
-    # seed = 1001
-    # random.seed(seed)
-    # np.random.seed(seed)
-    # tf.random.set_seed(seed)
-
     # Creating the different sim worlds
     asw = AcrobatSimWorld()
     asw.begin_episode()
