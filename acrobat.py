@@ -8,7 +8,7 @@ from matplotlib.animation import FuncAnimation
 class AcrobatSimWorld:
     """
     Pole Balancing simulation world.
-    State representation: [theta1 (float), theta1' (float), theta2 (float), theta2 (float)']
+    State representation: [theta1 (float), theta1' (float), theta2 (float), theta2' (float)]
     Action representation: action ∈ {-1, 0, 1}
     """
 
@@ -215,16 +215,6 @@ class AcrobatSimWorld:
         bottom = -(self.l_1 + self.l_2)
         reward += (ytip - bottom)
 
-        # # Tip upper segment distance from bottom
-        # _, yp_2, _, _ = self.calculate_segment_positions()
-        # bottom = -(self.l_1)
-        # reward += (yp_2 - bottom)
-
-        # # Angular velocity of upper segment
-        # reward += np.abs(self.theta_1_der)
-
-        # # Angular velocity of lower segment
-        # reward += np.abs(self.theta_2_der)
         return reward
 
     def one_hot_encode(self, state):

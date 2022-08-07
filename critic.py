@@ -1,3 +1,5 @@
+"""haakon8855, anmols99, mnottveit"""
+
 import random
 import numpy as np
 import tensorflow as tf
@@ -10,11 +12,11 @@ class Critic:
 
     def __init__(self, lr, nn_specs, disc_factor, epsilon,
                  epsilon_decay_rate) -> None:
-        self.lr = lr
-        self.nn = self.create_nn(nn_specs)
-        self.disc_factor = disc_factor
-        self.epsilon = epsilon
-        self.epsilon_decay_rate = epsilon_decay_rate
+        self.lr = lr # Learning rate
+        self.nn = self.create_nn(nn_specs) # Neural network specs
+        self.disc_factor = disc_factor # Discount factor
+        self.epsilon = epsilon # Epsilon, the probability of choosing a random action
+        self.epsilon_decay_rate = epsilon_decay_rate # Epsilon decay rate
 
     def create_nn(self, nn_specs):
         """
@@ -51,7 +53,7 @@ class Critic:
 
     def Q(self, s, a):
         """
-        Returns the policy, s and a are one-hot
+        Returns the policy, s and a are one-hot encoded
         """
         s_a = np.concatenate((s, a))
         return self.nn(s_a[None])
