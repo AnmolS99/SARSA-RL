@@ -4,6 +4,8 @@
 
 This project was part of the Artificial Intelligence Programming (IT3105) course at NTNU spring 2022. The aim of this project was to create a reinforcement learning system using the SARSA RL Algorithm to learn to play a simple physics game. The AI has been trained to play a game, which we will refer to as the *The Acrobat Game*. The acrobat game is a simulated game designed to approximate an acrobat holding on to a horizontal bar using their hands.
 
+[This youtube video](https://youtu.be/fcoKjOAXDZ0) briefly explains the project and its results.
+
 ### Architecture
 
 The RL system consists of a Critic implemented using a neural network and the SARSA algorithm itself, which handles the actual learning and communication with the simulation world. The diagram below shows the structure of the SARSA RL system:
@@ -40,8 +42,8 @@ pip install tensorflow numpy matplotlib
 
 The AI's performance before any training:
 
-![Animation showing perfomance before training](https://i.imgur.com/9vloaDx.gif)
+![Animation showing perfomance before training](./images/1.gif)
 
 After training:
 
-![Animation showing perfomance after training](https://i.imgur.com/mjYm9I9.gif)
+![Animation showing perfomance after training](./images/2.gif)
