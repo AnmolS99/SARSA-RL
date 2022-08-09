@@ -42,8 +42,8 @@ pip install tensorflow numpy matplotlib
 
 The AI's performance before any training:
 
-![Animation showing perfomance before training](https://i.imgur.com/9vloaDx.gif)
+![Animation showing perfomance before training](./images/1.gif)
 
 After training:
 
-![Animation showing perfomance after training](https://i.imgur.com/mjYm9I9.gif)
+![Animation showing perfomance after training](./images/2.gif)
